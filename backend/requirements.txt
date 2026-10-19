@@ -1,0 +1,20 @@
+fastapi==0.115.13
+uvicorn==0.34.0
+# File(...) / Form(...) 依赖它来解析 multipart 表单，FastAPI 不会自动带上。
+# 漏了它启动时就报 'Form data requires "python-multipart" to be installed'
+python-multipart==0.0.32
+sqlalchemy==2.0.41
+pymysql==1.1.1
+pydantic-settings==2.7.1
+# MySQL 8 默认用 caching_sha2_password 认证，PyMySQL 走这条认证时必须依赖它，
+# 否则会报 "'cryptography' package is required for sha256_password or
+# caching_sha2_password auth methods"（且只在密码缓存失效时才会触发，很隐蔽）
+cryptography==50.0.1
+bcrypt==5.0.0
+PyJWT==2.13.0
+openai==3.14.1
+chromadb==1.5.9
+sentence-transformers==6.0.1
+langgraph==1.2.11
+langchain-openai==1.6.2
+langchain-core==1.6.3
