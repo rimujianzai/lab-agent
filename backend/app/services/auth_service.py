@@ -4,7 +4,7 @@ from app.common.exceptions import BusinessException
 from app.models.user import User
 from app.schemas.auth import LoginRequest, LoginResponse, RegisterRequest
 from app.schemas.user import UserResponse
-from app.utils.jwt import create_access_token
+from app.utils.security import create_access_token
 from app.utils.password import hash_password, verify_password
 
 

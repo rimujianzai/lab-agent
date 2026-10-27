@@ -77,7 +77,7 @@ lab-agent/
 │   │   │   ├── response.py               # Response / PageResponse
 │   │   │   └── exceptions.py             # BusinessException + 4 个异常处理器
 │   │   └── utils/
-│   │       ├── jwt.py                    # 签发 / 解析 token
+│   │       ├── security.py               # 签发 / 解析 token（不叫 jwt.py，避免遮蔽第三方包）
 │   │       └── password.py               # bcrypt 哈希与校验
 │   ├── data/
 │   │   ├── kb/                           # 知识库原文（*.md）

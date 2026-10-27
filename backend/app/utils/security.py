@@ -2,6 +2,9 @@ from datetime import datetime, timedelta
 import jwt
 from app.config import settings
 
+# 注意：本文件不能叫 jwt.py。它和第三方包 jwt 同名时，`import jwt` 会解析到自己，
+# 于是 jwt.encode / jwt.decode 变成「不是模块 jwt 的已知属性」，运行时也容易导入错包。
+
 
 def create_access_token(user_id: int) -> str:
     """创建JWT token"""
