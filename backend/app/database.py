@@ -15,6 +15,7 @@ engine = create_engine(
     settings.DATABASE_URL,
     pool_pre_ping=True,
     pool_recycle=3600,
+    connect_args={"charset": "utf8mb4"},
 )
 
 # 数据库 session 会话的连接工厂
