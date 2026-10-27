@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy import DateTime, create_engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, sessionmaker
 
@@ -41,13 +41,13 @@ class Base(DeclarativeBase):
         primary_key=True, autoincrement=True, comment="主键ID", sort_order=-1
     )
     create_time: Mapped[datetime] = mapped_column(
-        DateTime, default=datetime.now, comment="创建时间", sort_order=1
+        DateTime, default=lambda: datetime.now(timezone.utc), comment="创建时间", sort_order=1
     )
     update_time: Mapped[datetime] = mapped_column(
         DateTime,
-        default=datetime.now,
+        default=lambda: datetime.now(timezone.utc),
         # 每次 UPDATE 自动刷新，不然改了数据 update_time 还是老值
-        onupdate=datetime.now,
+        onupdate=lambda: datetime.now(timezone.utc),
         comment="更新时间",
         sort_order=2,
     )
