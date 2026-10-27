@@ -44,9 +44,7 @@ def _build_embedding_fn(model_name: str) -> EmbeddingFunction[Embeddable]:
     except Exception:
         # 本地没有缓存（比如刚克隆项目、第一次跑），才回退到联网下载
         logger.warning("本地缓存里没有 %s，改为联网下载模型", model_name)
-        return cast(
-            "EmbeddingFunction[Embeddable]", factory(model_name=model_name)
-        )
+        return cast("EmbeddingFunction[Embeddable]", factory(model_name=model_name))
 
 
 def get_embedding_fn() -> EmbeddingFunction[Embeddable]:
@@ -61,12 +59,12 @@ def get_embedding_fn() -> EmbeddingFunction[Embeddable]:
 
 def warmup():
     """启动时预热：把模型加载 + 首次检索的开销付在启动阶段，别落在第一个用户请求上"""
-    col = get_collcetion()
+    col = get_collection()
     if col.count() > 0:
         col.query(query_texts=["预热"], n_results=1)
 
 
-def get_collcetion() -> Collection:
+def get_collection() -> Collection:
     """向量库的初始化"""
 
     global _collection
@@ -94,9 +92,10 @@ def get_collcetion() -> Collection:
     _collection = col
     return col
 
+
 def search(query: str):
     """根据关键字去检索向量库"""
-    col = get_collcetion()
+    col = get_collection()
     if col.count() == 0:
         return ""
     limit = min(5, col.count())
@@ -117,12 +116,12 @@ def search(query: str):
     安全规范....
     """
     score_parts = []
-    for doc, metas, dist in zip(docs, metas, distances):
+    for doc, meta, dist in zip(docs, metas, distances):
         # 0-1 越接近1表示越相关
         score = 1 / (1 + dist)
         if score < 0.5:
             continue
-        name = metas.get("source") or ""
+        name = meta.get("source") or ""
         score_parts.append({"score": score, "content": f"[{name}]\n{doc}"})
     logger.debug("检索出来的 score_parts：%s", score_parts)
     score_parts.sort(key=lambda x: x["score"], reverse=True)
