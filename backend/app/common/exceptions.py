@@ -14,7 +14,7 @@ class BusinessException(Exception):
         super().__init__(message)
 
 
-async def bussiness_excpetion_handler(request: Request, exc: Exception):
+async def business_exception_handler(request: Request, exc: Exception):
     """自定义业务异常处理器
 
     参数标注成 Exception 而不是 BusinessException：Starlette 的
@@ -23,24 +23,24 @@ async def bussiness_excpetion_handler(request: Request, exc: Exception):
     真正传入的一定是 BusinessException（按类型注册的），这里用 isinstance 收窄。
     """
     if not isinstance(exc, BusinessException):
-        return await global_excpetion_handler(request, exc)
+        return await global_exception_handler(request, exc)
     return JSONResponse(
         status_code=200,
         content=Response.error(code=exc.code, message=exc.message).model_dump(),
     )
 
 
-async def http_excpetion_handler(request: Request, exc: Exception):
+async def http_exception_handler(request: Request, exc: Exception):
     """Http异常处理器"""
     if not isinstance(exc, HTTPException):
-        return await global_excpetion_handler(request, exc)
+        return await global_exception_handler(request, exc)
     return JSONResponse(
         status_code=exc.status_code,
         content=Response.error(code=exc.status_code, message=exc.detail).model_dump(),
     )
 
 
-async def validation_excpetion_handler(request: Request, exc: Exception):
+async def validation_exception_handler(request: Request, exc: Exception):
     """参数异常处理器
 
     只回一句「请求参数校验错误」的话，前端根本不知道该改哪个字段：
@@ -49,7 +49,7 @@ async def validation_excpetion_handler(request: Request, exc: Exception):
         请求参数校验错误：body.file: Field required
     """
     if not isinstance(exc, RequestValidationError):
-        return await global_excpetion_handler(request, exc)
+        return await global_exception_handler(request, exc)
     details = "；".join(
         f"{'.'.join(str(part) for part in error['loc'])}: {error['msg']}"
         for error in exc.errors()
@@ -62,7 +62,7 @@ async def validation_excpetion_handler(request: Request, exc: Exception):
     )
 
 
-async def global_excpetion_handler(request: Request, exc: Exception):
+async def global_exception_handler(request: Request, exc: Exception):
     """全局异常处理器"""
     return JSONResponse(
         status_code=500,

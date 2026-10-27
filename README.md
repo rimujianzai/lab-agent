@@ -228,7 +228,7 @@ api（参数接收 / 依赖注入 / 响应包装）
 ```
 
 - 所有成功响应统一为 `Response.success(data=...)` → `{code: 200, message, data}`
-- 业务失败抛 `BusinessException(message, code)`，由 `bussiness_excpetion_handler` 统一转成 HTTP 200 + 业务 code
+- 业务失败抛 `BusinessException(message, code)`，由 `business_exception_handler` 统一转成 HTTP 200 + 业务 code
 - `RequestValidationError` 会把 Pydantic 的字段级报错拼进 message，例如 `请求参数校验错误：body.file: Field required`
 - 兜底 `Exception` 处理器只回「服务器内部错误」，堆栈只进日志
 
@@ -249,12 +249,12 @@ Reservation.end_time > data.start_time
 
 ### 3. 预约状态机
 
-| 状态值 | 含义 | 可执行动作 |
-|--------|------|-----------|
-| 0 | 待审核 | 取消、审核通过、审核拒绝、超时自动失效 |
-| 1 | 已通过 | — |
-| 2 | 已拒绝 | — |
-| 3 | 已取消 / 已失效 | — |
+| 状态值 | 含义            | 可执行动作                             |
+| ------ | --------------- | -------------------------------------- |
+| 0      | 待审核          | 取消、审核通过、审核拒绝、超时自动失效 |
+| 1      | 已通过          | —                                      |
+| 2      | 已拒绝          | —                                      |
+| 3      | 已取消 / 已失效 | —                                      |
 
 `run_expire_scan()` 在 lifespan 中作为 asyncio 任务启动，每 60 秒把「日期已过」或「当天且结束时间已过」的待审核记录置为 3，进程退出时任务被取消。
 
@@ -287,15 +287,15 @@ graph.compile()
 
 `POST /api/ai/chat/stream` 返回 `text/event-stream`，事件类型：
 
-| type | 载荷 | 说明 |
-|------|------|------|
-| `conversation` | `id`, `title` | 新会话 ID，前端据此切换当前会话 |
-| `status` | `message` | 阶段提示（如「正在思考…」） |
-| `tool_start` | `name`, `label` | 工具开始，`label` 是中文过程文案 |
-| `tool_end` | `name`, `label`, `preview` | 工具结束，结果截断到 200 字符做预览 |
-| `token` | `content` | 逐字输出 |
-| `done` | — | 本轮结束（不再重复带全文） |
-| `error` | `message` | 流内错误（不抛 HTTP 异常，避免前端拿不到已输出内容） |
+| type           | 载荷                       | 说明                                                 |
+| -------------- | -------------------------- | ---------------------------------------------------- |
+| `conversation` | `id`, `title`              | 新会话 ID，前端据此切换当前会话                      |
+| `status`       | `message`                  | 阶段提示（如「正在思考…」）                          |
+| `tool_start`   | `name`, `label`            | 工具开始，`label` 是中文过程文案                     |
+| `tool_end`     | `name`, `label`, `preview` | 工具结束，结果截断到 200 字符做预览                  |
+| `token`        | `content`                  | 逐字输出                                             |
+| `done`         | —                          | 本轮结束（不再重复带全文）                           |
+| `error`        | `message`                  | 流内错误（不抛 HTTP 异常，避免前端拿不到已输出内容） |
 
 实现要点：
 
@@ -315,29 +315,29 @@ graph.compile()
 
 启动后访问 `http://127.0.0.1:8000/docs`。统一前缀 `/api`：
 
-| 模块 | 方法与路径 | 说明 |
-|------|-----------|------|
-| 认证 | `POST /api/auth/login` | 登录，返回 token |
-| 认证 | `POST /api/auth/register` | 注册 |
-| 用户 | `GET /api/user/me` / `PUT /api/user/me` | 当前用户信息 |
-| 用户 | `PUT /api/user/password` | 修改密码 |
-| 用户 | `GET /api/user/list` / `POST /api/user` | 用户列表 / 新增（管理员） |
-| 用户 | `PUT /api/user/{id}` / `DELETE /api/user/{id}` | 编辑 / 删除（管理员） |
-| 实验室 | `GET /api/lab/list` / `GET /api/lab/{id}` | 分页查询 / 详情 |
-| 实验室 | `POST /api/lab` / `PUT /api/lab/{id}` / `DELETE /api/lab/{id}` | 新增 / 编辑 / 删除 |
-| 设备 | `GET /api/equipment/list` | 按实验室 / 关键词分页 |
-| 设备 | `POST /api/equipment` / `PUT /api/equipment/{id}` / `DELETE /api/equipment/{id}` | 增删改 |
-| 预约 | `POST /api/reservation` | 创建预约（含全部校验） |
-| 预约 | `GET /api/reservation/list` | 列表（学生只看自己，管理员看全部） |
-| 预约 | `PUT /api/reservation/{id}/cancel` | 取消（仅本人 + 待审核） |
-| 预约 | `PUT /api/reservation/{id}/audit` | 审核（管理员，1 通过 / 2 拒绝） |
-| AI | `POST /api/ai/chat` | 整包返回对话结果 |
-| AI | `POST /api/ai/chat/stream` | SSE 流式对话 |
-| 会话 | `GET /api/ai/conversation/list` | 会话列表 |
-| 会话 | `GET /api/ai/conversation/{id}/messages` | 历史消息 |
-| 会话 | `DELETE /api/ai/conversation/{id}` | 删除会话 |
-| 文件 | `POST /api/files/upload` | 上传图片 / 文档（≤100MB） |
-| 系统 | `GET /api/health` | 服务 + 数据库健康检查 |
+| 模块   | 方法与路径                                                                       | 说明                               |
+| ------ | -------------------------------------------------------------------------------- | ---------------------------------- |
+| 认证   | `POST /api/auth/login`                                                           | 登录，返回 token                   |
+| 认证   | `POST /api/auth/register`                                                        | 注册                               |
+| 用户   | `GET /api/user/me` / `PUT /api/user/me`                                          | 当前用户信息                       |
+| 用户   | `PUT /api/user/password`                                                         | 修改密码                           |
+| 用户   | `GET /api/user/list` / `POST /api/user`                                          | 用户列表 / 新增（管理员）          |
+| 用户   | `PUT /api/user/{id}` / `DELETE /api/user/{id}`                                   | 编辑 / 删除（管理员）              |
+| 实验室 | `GET /api/lab/list` / `GET /api/lab/{id}`                                        | 分页查询 / 详情                    |
+| 实验室 | `POST /api/lab` / `PUT /api/lab/{id}` / `DELETE /api/lab/{id}`                   | 新增 / 编辑 / 删除                 |
+| 设备   | `GET /api/equipment/list`                                                        | 按实验室 / 关键词分页              |
+| 设备   | `POST /api/equipment` / `PUT /api/equipment/{id}` / `DELETE /api/equipment/{id}` | 增删改                             |
+| 预约   | `POST /api/reservation`                                                          | 创建预约（含全部校验）             |
+| 预约   | `GET /api/reservation/list`                                                      | 列表（学生只看自己，管理员看全部） |
+| 预约   | `PUT /api/reservation/{id}/cancel`                                               | 取消（仅本人 + 待审核）            |
+| 预约   | `PUT /api/reservation/{id}/audit`                                                | 审核（管理员，1 通过 / 2 拒绝）    |
+| AI     | `POST /api/ai/chat`                                                              | 整包返回对话结果                   |
+| AI     | `POST /api/ai/chat/stream`                                                       | SSE 流式对话                       |
+| 会话   | `GET /api/ai/conversation/list`                                                  | 会话列表                           |
+| 会话   | `GET /api/ai/conversation/{id}/messages`                                         | 历史消息                           |
+| 会话   | `DELETE /api/ai/conversation/{id}`                                               | 删除会话                           |
+| 文件   | `POST /api/files/upload`                                                         | 上传图片 / 文档（≤100MB）          |
+| 系统   | `GET /api/health`                                                                | 服务 + 数据库健康检查              |
 
 ## 🩺 常见问题
 

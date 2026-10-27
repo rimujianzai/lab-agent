@@ -9,13 +9,13 @@ from fastapi.staticfiles import StaticFiles
 from app.config import UPLOAD_DIR
 import asyncio
 import logging
-from app.services import reservation_service,kb_service
+from app.services import reservation_service, kb_service
 from app.common.exceptions import (
     BusinessException,
-    bussiness_excpetion_handler,
-    http_excpetion_handler,
-    validation_excpetion_handler,
-    global_excpetion_handler,
+    business_exception_handler,
+    http_exception_handler,
+    validation_exception_handler,
+    global_exception_handler,
 )
 
 logger = logging.getLogger("lab_agent")
@@ -71,11 +71,11 @@ app.add_middleware(
 )
 app.include_router(api)
 # 注册异常处理器
-app.add_exception_handler(BusinessException,bussiness_excpetion_handler)
-app.add_exception_handler(HTTPException, http_excpetion_handler)
-app.add_exception_handler(RequestValidationError, validation_excpetion_handler)
+app.add_exception_handler(BusinessException, business_exception_handler)
+app.add_exception_handler(HTTPException, http_exception_handler)
+app.add_exception_handler(RequestValidationError, validation_exception_handler)
 # 全局的异常兜底，必须放在最后注册！！
-app.add_exception_handler(Exception, global_excpetion_handler)
+app.add_exception_handler(Exception, global_exception_handler)
 
 # 挂载静态资源：/uploads/xxx.jpg → uploads/xxx.jpg
 app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
