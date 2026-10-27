@@ -2,6 +2,7 @@ import re
 
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
+from sqlalchemy.future import select
 
 from app.common.exceptions import BusinessException
 from app.common.response import PageResponse
@@ -37,7 +38,7 @@ def get_lab_page_list(
 
 
 def get_lab(db: Session, lab_id: int):
-    lab = db.query(Lab).filter(Lab.id == lab_id).first()
+    lab = db.scalars(select(Lab).where(Lab.id == lab_id)).first()
     if not lab:
         raise BusinessException(message="实验室不存在")
     return LabResponse.model_validate(lab)
