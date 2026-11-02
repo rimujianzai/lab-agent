@@ -119,7 +119,7 @@ def search(query: str):
     for doc, meta, dist in zip(docs, metas, distances):
         # 0-1 越接近1表示越相关
         score = 1 / (1 + dist)
-        if score < 0.5:
+        if score < 0.65:
             continue
         name = meta.get("source") or ""
         score_parts.append({"score": score, "content": f"[{name}]\n{doc}"})
