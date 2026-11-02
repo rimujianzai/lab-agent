@@ -74,7 +74,8 @@
                 :total="total"
                 small
                 background
-                layout="prev, pager, next"
+                layout="prev, pager, next, jumper"
+                :pager-count="5"
                 @current-change="loadConversations"
               />
             </div>

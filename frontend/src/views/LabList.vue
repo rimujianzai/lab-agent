@@ -68,7 +68,7 @@
             v-model:page-size="params.page_size"
             :total="total"
             background
-            layout="total, prev, pager, next"
+            layout="total, prev, pager, next, jumper"
             @current-change="load"
           />
         </div>
