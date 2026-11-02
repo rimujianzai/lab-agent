@@ -247,6 +247,45 @@ Reservation.end_time > data.start_time
 - 预约整间实验室时追加 `equipment_id IS NULL`，预约设备时按 `equipment_id` 过滤，两类互不干扰
 - 时间统一存 `String("HH:MM")`，保证字典序与时间序一致，可直接用字符串比较与建索引
 
+#### 并发安全：为什么光有这个条件还不够
+
+上面这段是 check-then-act：先查冲突、再插入，两步之间没有互斥。两个请求同时到达会这样交错：
+
+```
+A 查 10:00-11:00 → 无冲突
+B 查 10:00-11:00 → 无冲突   ← A 还没插入，B 看不见
+A 插入 → 成功
+B 插入 → 成功               ← 同一时段被约两次
+```
+
+实测复现（两个线程，故意在「查询完成」和「插入」之间对齐）：落库 **2 条**。
+
+修复是在查询上加 `with_for_update()`，把「查 + 插」压成一个原子操作：
+
+```python
+query = db.query(Reservation).filter(...).with_for_update()   # SELECT ... FOR UPDATE
+conflicts = query.all()
+if conflicts:
+    raise BusinessException(message="该时段已预约")
+db.add(...)
+db.commit()
+```
+
+实测（同样两个线程抢 10:00-11:00）：一个成功、一个被拒，落库 **1 条**。
+
+三个前提必须同时成立，缺一个锁就白加：
+
+| 前提 | 为什么 | 本项目的做法 |
+| --- | --- | --- |
+| 条件走索引 | InnoDB 行锁加在索引记录上，全表扫描会让行锁退化成锁全表 | `idx_lab_date_equip_start (lab_id, date, equipment_id, start_time)` |
+| 隔离级别 RR 及以上 | 间隙锁（next-key lock）只在 RR+ 生效，READ COMMITTED 下防不住幻读 | `create_engine(..., isolation_level="REPEATABLE READ")` |
+| 用 `.all()` 而非 `.first()` | 扫描要覆盖整个候选区间，间隙锁才能把区间两端都锁上 | `conflicts = query.all()` |
+
+锁的持有区间是「`FOR UPDATE` 执行 → `commit`」，中间只有一次 insert，时间极短。锁等待超时（默认 50s）或死锁被 MySQL 主动回滚时，捕获 `OperationalError` 转成「当前预约人数较多，请稍后重试」，不把 500 抛给前端。
+
+> **老库升级**：`create_all()` 不会给已存在的表补索引，需手动执行一次
+> `mysql -uroot -p lab_agent < sql/add_reservation_indexes.sql`（幂等，可重复跑）。
+
 ### 3. 预约状态机
 
 | 状态值 | 含义            | 可执行动作                             |

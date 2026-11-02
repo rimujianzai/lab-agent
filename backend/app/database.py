@@ -16,6 +16,13 @@ engine = create_engine(
     pool_pre_ping=True,
     pool_recycle=3600,
     connect_args={"charset": "utf8mb4"},
+    # 显式钉死 REPEATABLE READ。预约冲突检测靠 SELECT ... FOR UPDATE 的
+    # 间隙锁（next-key lock）来防并发超卖，而间隙锁只在 RR 及以上生效：
+    # 一旦被改成 READ COMMITTED，行锁只锁已存在的记录，另一个事务照样能
+    # 往同一区间插入新行，冲突检测就形同虚设。
+    # MySQL 默认就是 RR，但默认值可以被全局配置或连接串改掉，
+    # 写在这里等于把这个前提固化进代码，不再依赖线上库怎么配。
+    isolation_level="REPEATABLE READ",
 )
 
 # 数据库 session 会话的连接工厂

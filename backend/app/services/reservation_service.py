@@ -1,3 +1,4 @@
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
 from datetime import datetime
 from app.common.response import PageResponse
@@ -7,7 +8,6 @@ from app.models.equipment import Equipment
 from app.models.lab import Lab
 from app.models.reservation import Reservation
 from app.models.user import User
-from app.schemas.reservation import ReservationCreateRequest
 import asyncio
 from app.database import SessionLocal
 
@@ -100,12 +100,35 @@ def create_reservation(db: Session, current_user: User, data: ReservationCreateR
             raise BusinessException(message="实验室设备正在维修")
 
     # 实验室或者设备是否是可预约的状态
-    query = db.query(Reservation).filter(
-        Reservation.lab_id == data.lab_id,
-        Reservation.date == data.date,
-        Reservation.status.in_([0, 1]),  # 0表示待审核  1已通过
-        Reservation.start_time < data.end_time,
-        Reservation.end_time > data.start_time,
+    #
+    # 「加锁查询 + 插入」必须在同一个事务里完成。不加锁时这是典型的
+    # check-then-act：先查有没有冲突、再插入，两个请求并发会这样交错
+    #   A 查 10:00-11:00 无冲突 → B 查 10:00-11:00 也无冲突
+    #   → A 插入 → B 插入
+    # 结果是同一时段被约了两次。原因是 A 插入前 B 的查询根本看不见 A 的行。
+    #
+    # with_for_update() 生成 SELECT ... FOR UPDATE。InnoDB 在 REPEATABLE READ
+    # 隔离级别下加的是 next-key lock（记录锁 + 间隙锁）：不仅锁住已命中的记录，
+    # 连「将要插入的那个间隙」一起锁住。另一个事务想往同一区间插入时会被阻塞，
+    # 等本事务提交后重新查一次才发现冲突，于是被拒绝。
+    #
+    # 两个前提缺一不可：
+    #   1) 条件必须走索引，否则全表扫描会让行锁退化成锁全表（见模型上的
+    #      idx_lab_date_equip_start）
+    #   2) 隔离级别必须是 RR 或以上，READ COMMITTED 下间隙锁失效，防不住幻读
+    #
+    # 用 .all() 而不是 .first()：让扫描完整覆盖候选区间，间隙锁才会把区间
+    # 两端都锁上，不会在第一条记录处提前停止。
+    query = (
+        db.query(Reservation)
+        .filter(
+            Reservation.lab_id == data.lab_id,
+            Reservation.date == data.date,
+            Reservation.status.in_([0, 1]),  # 0表示待审核  1已通过
+            Reservation.start_time < data.end_time,
+            Reservation.end_time > data.start_time,
+        )
+        .with_for_update()
     )
     if data.equipment_id:
         query = query.filter(
@@ -113,11 +136,18 @@ def create_reservation(db: Session, current_user: User, data: ReservationCreateR
         )  # 预约实验室设备
     else:
         query = query.filter(Reservation.equipment_id.is_(None))  # 只预约实验室
-    res = query.first()
-    if res:
+    try:
+        conflicts = query.all()
+    except OperationalError:
+        # 锁等待超时（默认 innodb_lock_wait_timeout=50s）或死锁被 MySQL 回滚。
+        # 这里必须显式回滚，把事务和锁一起放掉，再把原始错误转成可读提示。
+        db.rollback()
+        raise BusinessException(message="当前预约人数较多，请稍后重试")
+    if conflicts:
+        # 抛异常向上传播，get_db() 里会 rollback，锁随之释放
         raise BusinessException(message="该时段已预约")
 
-    resvervation_model = Reservation(
+    reservation_model = Reservation(
         user_id=current_user.id,
         lab_id=data.lab_id,
         equipment_id=data.equipment_id,
@@ -127,8 +157,13 @@ def create_reservation(db: Session, current_user: User, data: ReservationCreateR
         remark=data.remark,
         status=0,
     )
-    db.add(resvervation_model)
-    db.commit()
+    try:
+        db.add(reservation_model)
+        db.commit()
+    except Exception:
+        # 提交失败必须回滚，否则这把锁会一直挂到连接被回收才释放
+        db.rollback()
+        raise
 
 
 def expire_pending_reservations():
